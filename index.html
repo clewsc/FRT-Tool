@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fever in the returned traveller — incubation &amp; geography explorer</title>
+<style>
+  :root{
+    --ink:#1F2937; --mute:#6B7280; --faint:#9CA3AF; --line:#E5E7EB; --panel:#F9FAFB;
+    --band:#E5E7EB; --accent:#B4451F; --navy:#1F3A5F;
+    --vir:#2F5D8A; --bac:#A8652A; --par:#4E7D5B; --fun:#7A5C99; --other:#4E7D5B;
+    --mosq:#2F5D8A; --arth:#7A5C99; --food:#A8652A; --env:#4E7D5B; --p2p:#9B2C2C;
+    --sys:#2F5D8A; --gi:#A8652A; --resp:#4E7D5B; --cns:#7A5C99; --vhf:#9B2C2C; --fungal:#4E7D5B;
+    --bg:#FFFFFF; --card:#FFFFFF;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);
+  }
+  :root:not([data-theme="light"]){ @media (prefers-color-scheme:dark){
+    --ink:#E5E7EB;--mute:#9CA3AF;--faint:#6B7280;--line:#374151;--panel:#111827;--band:#374151;
+    --bg:#0B1220;--card:#0F172A;--navy:#93B4E0;
+  }}
+  :root[data-theme="dark"]{
+    --ink:#E5E7EB;--mute:#9CA3AF;--faint:#6B7280;--line:#374151;--panel:#111827;--band:#374151;
+    --bg:#0B1220;--card:#0F172A;--navy:#93B4E0;
+  }
+  *{box-sizing:inherit}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:Arial,"Liberation Sans","Helvetica Neue",Helvetica,sans-serif;font-size:15px;line-height:1.4;}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px;}
+  h1{font-size:20px;margin:0 0 2px;color:var(--navy);}
+  .sub{color:var(--mute);font-size:13px;margin:0 0 12px;}
+  .banner{background:#FFF7ED;border:1px solid #FED7AA;color:#7C2D12;border-radius:8px;
+    padding:8px 12px;font-size:12.5px;margin:0 0 14px;}
+  :root[data-theme="dark"] .banner,:root:not([data-theme="light"]) .banner{
+    @media (prefers-color-scheme:dark){background:#2A1B0E;border-color:#7C4A21;color:#FCD9B6;}}
+  .controls{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:flex-end;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+  .ctl{display:flex;flex-direction:column;gap:4px;}
+  .ctl label{font-size:11.5px;font-weight:bold;color:var(--mute);text-transform:uppercase;letter-spacing:.03em;}
+  select,button{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);
+    border-radius:7px;padding:6px 9px;}
+  select:focus,button:focus{outline:2px solid var(--navy);outline-offset:1px;}
+  button{cursor:pointer;}
+  button.ghost{background:transparent;}
+  .timing{display:flex;flex-direction:column;gap:5px;}
+  .rare-toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);cursor:pointer;padding:6px 2px;text-transform:none;letter-spacing:0;font-weight:normal;}
+  .rare-toggle input{cursor:pointer;}
+  .timing .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .chip{border:1px solid var(--line);background:var(--card);color:var(--mute);border-radius:14px;
+    padding:4px 11px;font-size:12.5px;cursor:pointer;}
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:bold;}
+  .chip.off[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);}
+  .legend{display:flex;flex-wrap:wrap;gap:10px 16px;font-size:12px;color:var(--mute);margin:2px 2px 12px;align-items:center;}
+  .legend .k{display:inline-flex;align-items:center;gap:6px;}
+  .legend .sw{width:22px;height:9px;border-radius:2px;display:inline-block;}
+  .legend .swL{width:22px;height:0;border-top:1.5px solid currentColor;display:inline-block;}
+  .status{font-size:12.5px;color:var(--mute);margin:0 2px 8px;}
+  .chart{width:100%;overflow-x:auto;}
+  svg{display:block;width:100%;height:auto;font-family:inherit;}
+  .rowhit{cursor:pointer;}
+  .rowhit:hover rect.rowbg{fill:var(--panel);}
+  .lbl{font-size:12px;fill:var(--ink);}
+  .lbl.core{font-weight:bold;}
+  .lbl.absent{fill:var(--faint);font-style:italic;}
+  .rng{font-size:11.5px;fill:var(--mute);}
+  .tick{font-size:11px;fill:var(--mute);}
+  .band-h{font-size:11.5px;font-weight:bold;fill:var(--mute);}
+  .rule{stroke:var(--faint);stroke-width:1;}
+  .grid{stroke:var(--line);stroke-width:1;}
+  .cursor{stroke:var(--accent);stroke-width:1.4;stroke-dasharray:4 3;}
+  .fade{opacity:.28;}
+  .panel{position:fixed;top:0;right:0;height:100%;width:min(380px,90vw);background:var(--card);
+    border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.12);
+    transform:translateX(100%);transition:transform .18s ease;z-index:20;overflow:auto;
+    padding:calc(16px + env(safe-area-inset-top,0)) 18px 24px;}
+  .panel.open{transform:translateX(0);}
+  .panel h2{margin:0 6px 2px 0;font-size:17px;color:var(--navy);}
+  .panel .close{position:absolute;top:12px;right:12px;border:0;background:transparent;font-size:22px;color:var(--mute);cursor:pointer;}
+  .panel dl{margin:14px 0 0;}
+  .panel dt{font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.03em;color:var(--mute);margin-top:12px;}
+  .panel dd{margin:2px 0 0;font-size:14px;}
+  .tag{display:inline-block;padding:2px 8px;border-radius:11px;font-size:11.5px;color:#fff;font-weight:bold;}
+  .foot{font-size:11.5px;color:var(--mute);margin-top:18px;border-top:1px solid var(--line);padding-top:10px;}
+  .foot code{background:var(--panel);padding:1px 4px;border-radius:3px;}
+  /* export dialog */
+  .modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;z-index:40;
+    align-items:center;justify-content:center;padding:16px;}
+  .modal.open{display:flex;}
+  .dlg{background:var(--card);border:1px solid var(--line);border-radius:12px;max-width:440px;width:100%;
+    padding:20px 22px;box-shadow:0 20px 50px rgba(0,0,0,.25);}
+  .dlg h2{margin:0 0 4px;font-size:17px;color:var(--navy);}
+  .dlg p{margin:0 0 14px;font-size:12.5px;color:var(--mute);}
+  .drow{margin:12px 0;}
+  .drow .l{font-size:11.5px;font-weight:bold;text-transform:uppercase;letter-spacing:.03em;color:var(--mute);margin-bottom:5px;}
+  .seg2{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;flex-wrap:wrap;}
+  .seg2 button{border:0;border-radius:0;padding:6px 12px;background:var(--card);color:var(--mute);font-size:13px;border-right:1px solid var(--line);}
+  .seg2 button:last-child{border-right:0;}
+  .seg2 button[aria-pressed="true"]{background:var(--navy);color:#fff;font-weight:bold;}
+  .dlg .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+  .dlg .actions button{padding:8px 16px;}
+  .dlg .primary{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:bold;}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:2px;}
+  .topbtns{display:flex;align-items:center;gap:10px;flex-shrink:0;padding-top:2px;}
+  .seg2.theme button{padding:5px 10px;font-size:12.5px;}
+  .iconbtn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--card);
+    color:var(--navy);font-weight:bold;font-style:italic;font-size:15px;line-height:1;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;font-family:Georgia,"Times New Roman",serif;}
+  .iconbtn:hover{background:var(--panel);}
+  .info-body p{font-size:13px;color:var(--ink);margin:0 0 10px;}
+  .info-body .meta{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px;margin:0 0 14px;}
+  .info-body .meta b{color:var(--navy);}
+  .info-body .report{display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;
+    border:1px solid var(--navy);border-radius:8px;padding:9px 14px;font-size:13px;font-weight:bold;
+    text-decoration:none;cursor:pointer;}
+  .info-body .report:hover{opacity:.92;}
+  .info-body .muted{font-size:11.5px;color:var(--mute);margin-top:12px;}
+  @media print{
+    .controls,.banner,.panel,.hint,.printbtn,.modal,.foot,.status{display:none!important;}
+    .wrap{max-width:100%;padding:0;}
+    h1{font-size:14px;} .sub{font-size:10px;margin-bottom:6px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="wrap">
+  <div class="topbar">
+    <div>
+      <h1 id="title">Fever in the returned traveller — incubation &amp; geography explorer</h1>
+      <p class="sub" id="subtitle">Typical incubation period (thick) over reported range (thin); dotted = long tail.</p>
+    </div>
+    <div class="topbtns">
+      <div class="seg2 theme" id="themeSeg" role="group" aria-label="Colour theme">
+        <button data-t="system" aria-pressed="true" title="Follow browser setting">System</button>
+        <button data-t="light" aria-pressed="false" title="Light">Light</button>
+        <button data-t="dark" aria-pressed="false" title="Dark">Dark</button>
+      </div>
+      <button class="iconbtn" id="openInfo" aria-label="About this tool" title="About / version">i</button>
+    </div>
+  </div>
+  <div class="banner">Travel related infections are dynamic and evolving — corroborate with secondary sources.</div>
+
+  <div class="controls">
+    <div class="ctl">
+      <label for="scheme">Colour by</label>
+      <select id="scheme">
+        <option value="route">Route of acquisition</option>
+        <option value="syn">Presenting syndrome</option>
+        <option value="path">Organism</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <label for="region">Region</label>
+      <select id="region"></select>
+    </div>
+    <div class="ctl timing">
+      <label>Days since leaving risk area</label>
+      <div class="row" id="bands">
+        <span class="chip off" data-band="off" aria-pressed="true">Off</span>
+        <span class="chip" data-band="0" aria-pressed="false">≤7 d</span>
+        <span class="chip" data-band="1" aria-pressed="false">8–14 d</span>
+        <span class="chip" data-band="2" aria-pressed="false">15–21 d</span>
+        <span class="chip" data-band="3" aria-pressed="false">&gt;21 d</span>
+      </div>
+    </div>
+    <div class="ctl">
+      <label>Rare causes</label>
+      <label class="rare-toggle"><input type="checkbox" id="rareToggle" checked> <span>Show rare</span></label>
+    </div>
+    <div class="ctl">
+      <label>&nbsp;</label>
+      <button class="ghost" id="reset">Reset</button>
+    </div>
+    <div class="ctl printbtn">
+      <label>&nbsp;</label>
+      <button class="ghost" id="openExport">Print / export…</button>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="status" id="status"></div>
+  <div class="chart"><svg id="svg" role="img" aria-label="Incubation period chart"></svg></div>
+
+  <div class="foot">
+    Data master: <code>fever_traveller_data_master.csv</code> (edit there, regenerate). Regional grades are a starting point for departmental sign-off.
+    Parasitic/other includes endemic mycoses; see other references. HCID rows (VHF) refer to Health NZ guidance.
+  </div>
+</div>
+
+<div class="panel" id="panel" aria-hidden="true">
+  <button class="close" id="pclose" aria-label="Close">×</button>
+  <h2 id="pname"></h2>
+  <div id="ptags"></div>
+  <dl>
+    <dt>Incubation (usual / range)</dt><dd id="ptime"></dd>
+    <dt>Typical clue</dt><dd id="pclue"></dd>
+    <dt>First test</dt><dd id="ptest"></dd>
+    <dt>In this region</dt><dd id="pgrade"></dd>
+    <dt>Route · syndrome · organism</dt><dd id="pmeta"></dd>
+  </dl>
+</div>
+
+<div class="modal" id="infoModal">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="infoh">
+    <button class="close" id="infoClose" aria-label="Close" style="position:absolute;top:10px;right:12px;border:0;background:transparent;font-size:22px;color:var(--mute);cursor:pointer;">×</button>
+    <h2 id="infoh">About this tool</h2>
+    <div class="info-body">
+      <p><strong>An aid to thinking, not a diagnostic rule.</strong> Incubation windows and regional grades are approximate and outliers occur. Corroborate with the secondary sources and current Health&nbsp;NZ / Public Health advice.</p>
+      <div class="meta">
+        <div><b>Version</b> 0.1 (prototype)</div>
+        <div><b>Reviewed</b> Oct 2026</div>
+        <div><b>Owner</b> Infection Services</div>
+      </div>
+      <p>Colour, region and a timing band are optional filters; the default view shows every entry across its full range. Data master: <code style="background:var(--panel);padding:1px 4px;border-radius:3px;">fever_traveller_data_master.csv</code>. Regional grades are a starting point for departmental sign-off.</p>
+      <a class="report" href="https://forms.cloud.microsoft/r/agbRddWua2" target="_blank" rel="noopener">⚑ Report an error</a>
+      <p class="muted">Opens a Microsoft Form in a new tab. Please note the infection, region, and what looks wrong.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgh">
+    <h2 id="dlgh">Print / export</h2>
+    <p>Choose how the figure should look. “As shown” keeps your current region, colour and timing filters.</p>
+    <div class="drow"><div class="l">Content</div>
+      <div class="seg2" id="exContent">
+        <button data-v="shown" aria-pressed="true">As shown</button>
+        <button data-v="full" aria-pressed="false">Full (all, unfiltered)</button>
+      </div></div>
+    <div class="drow"><div class="l">Colour</div>
+      <div class="seg2" id="exColour">
+        <button data-v="full" aria-pressed="true">Full colour</button>
+        <button data-v="grey" aria-pressed="false">Greyscale</button>
+      </div></div>
+    <div class="drow"><div class="l">Range column</div>
+      <div class="seg2" id="exRange">
+        <button data-v="on" aria-pressed="true">Show</button>
+        <button data-v="off" aria-pressed="false">Hide</button>
+      </div></div>
+    <div class="drow"><div class="l">Paper &amp; orientation</div>
+      <div class="seg2" id="exPaper">
+        <button data-v="a4l" aria-pressed="true">A4 landscape</button>
+        <button data-v="a4p" aria-pressed="false">A4 portrait</button>
+        <button data-v="a5l" aria-pressed="false">A5 landscape</button>
+        <button data-v="a5p" aria-pressed="false">A5 portrait</button>
+      </div></div>
+    <div class="actions">
+      <button class="ghost" id="exCancel">Cancel</button>
+      <button class="ghost" id="exPng">Download PNG</button>
+      <button class="primary" id="exPrint">Print / PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+let MARKER_STYLE="dot";  // ring | dot | suffix
+let EXPORT_FONT="Arial, 'Liberation Sans', 'Helvetica Neue', Helvetica, sans-serif";
+const DATA = {"regions": [{"id": "all", "name": "All regions"}, {"id": "fj", "name": "Fiji"}, {"id": "ws", "name": "Samoa"}, {"id": "asm", "name": "American Samoa"}, {"id": "to", "name": "Tonga"}, {"id": "ck", "name": "Cook Islands"}, {"id": "pg", "name": "Papua New Guinea"}, {"id": "sb", "name": "Solomon Islands"}, {"id": "vu", "name": "Vanuatu"}, {"id": "ki", "name": "Kiribati"}, {"id": "tv", "name": "Tuvalu"}, {"id": "nc", "name": "New Caledonia"}, {"id": "pf", "name": "French Polynesia"}, {"id": "sas", "name": "South Asia"}, {"id": "mse", "name": "SE Asia – mainland"}, {"id": "ise", "name": "SE Asia – maritime"}, {"id": "ssa", "name": "Sub-Saharan Africa"}, {"id": "naf", "name": "N Africa / Middle East"}, {"id": "lac", "name": "Latin America / Caribbean"}, {"id": "nau", "name": "N Australia"}, {"id": "sau", "name": "S Australia / NZ region"}, {"id": "nam", "name": "North America"}, {"id": "neu", "name": "N Europe / N Asia"}], "infections": [{"label": "Travellers' diarrhoea (ETEC and others)", "lo": 0.5, "hi": 3, "ulo": 1, "uhi": 2, "tail": false, "t": "1–2 d (12 h–3 d)", "path": "bac", "route": "food", "syn": "gi", "core": false, "clue": "Watery diarrhoea, usually afebrile and self-limiting.", "test": "Usually clinical; stool PCR if severe/febrile", "rare": false, "g": {"fj": "c", "ws": "c", "asm": "c", "to": "c", "ck": "c", "pg": "c", "sb": "c", "vu": "c", "ki": "c", "tv": "c", "nc": "c", "pf": "c", "sas": "c", "mse": "c", "ise": "c", "ssa": "c", "naf": "c", "lac": "c", "nau": "c", "sau": "c", "nam": "u", "neu": "u"}}, {"label": "Bacterial gastroenteritis (NTS, Campylobacter, Shigella)", "lo": 0.5, "hi": 10, "ulo": 1, "uhi": 3, "tail": false, "t": "1–3 d (12 h–10 d)", "path": "bac", "route": "food", "syn": "gi", "core": false, "clue": "Acute diarrhoea ± fever; STEC → bloody, afebrile, HUS risk.", "test": "Stool culture + enteric PCR before antibiotics", "rare": false, "g": {"fj": "c", "ws": "c", "asm": "c", "to": "c", "ck": "c", "pg": "c", "sb": "c", "vu": "c", "ki": "c", "tv": "c", "nc": "c", "pf": "c", "sas": "c", "mse": "c", "ise": "c", "ssa": "c", "naf": "c", "lac": "c", "nau": "c", "sau": "c", "nam": "c", "neu": "c"}}, {"label": "Influenza / COVID-19 (incl. avian A(H5N1))", "lo": 1, "hi": 10, "ulo": 1, "uhi": 4, "tail": false, "t": "1–4 d (1–10 d)", "path": "vir", "route": "p2p", "syn": "resp", "core": false, "clue": "Respiratory illness; avian influenza if sick-bird/poultry/cattle contact.", "test": "Respiratory viral PCR ± CXR", "rare": false, "g": {"fj": "c", "ws": "c", "asm": "c", "to": "c", "ck": "c", "pg": "c", "sb": "c", "vu": "c", "ki": "c", "tv": "c", "nc": "c", "pf": "c", "sas": "c", "mse": "c", "ise": "c", "ssa": "c", "naf": "c", "lac": "c", "nau": "c", "sau": "c", "nam": "c", "neu": "c"}}, {"label": "Yellow fever", "lo": 3, "hi": 6, "ulo": 3, "uhi": 6, "tail": false, "t": "3–6 d", "path": "vir", "route": "mosq", "syn": "sys", "core": false, "clue": "Fever, jaundice, bleeding in unvaccinated traveller; Africa/S America only.", "test": "PCR/serology via reference lab; notify", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "c", "naf": "absent", "lac": "u", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Chikungunya", "lo": 1, "hi": 12, "ulo": 3, "uhi": 7, "tail": false, "t": "3–7 d (1–12 d)", "path": "vir", "route": "mosq", "syn": "sys", "core": false, "clue": "Prominent symmetrical polyarthralgia ± rash; may persist months.", "test": "Alphavirus PCR (first week)/serology via reference lab", "rare": false, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "u", "sb": "u", "vu": "u", "ki": "u", "tv": "u", "nc": "u", "pf": "u", "sas": "u", "mse": "u", "ise": "u", "ssa": "u", "naf": "u", "lac": "u", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Dengue", "lo": 3, "hi": 14, "ulo": 4, "uhi": 7, "tail": false, "t": "4–7 d (3–14 d)", "path": "vir", "route": "mosq", "syn": "sys", "core": true, "clue": "Retro-orbital headache, myalgia, leucopenia + thrombocytopenia, AST>ALT.", "test": "Dengue NS1/IgM/IgG (first 5 d NS1); PCR via reference lab", "rare": false, "g": {"fj": "c", "ws": "c", "asm": "c", "to": "c", "ck": "c", "pg": "c", "sb": "c", "vu": "c", "ki": "c", "tv": "c", "nc": "c", "pf": "c", "sas": "c", "mse": "c", "ise": "c", "ssa": "c", "naf": "u", "lac": "c", "nau": "u", "sau": "absent", "nam": "u", "neu": "absent"}}, {"label": "Zika", "lo": 3, "hi": 14, "ulo": 4, "uhi": 7, "tail": false, "t": "4–7 d (3–14 d)", "path": "vir", "route": "mosq", "syn": "sys", "core": false, "clue": "Mild fever, rash, conjunctivitis; significance in pregnancy.", "test": "PCR blood+urine; serology cross-reacts with dengue", "rare": false, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "u", "sb": "u", "vu": "u", "ki": "u", "tv": "u", "nc": "u", "pf": "u", "sas": "absent", "mse": "u", "ise": "u", "ssa": "u", "naf": "absent", "lac": "u", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Legionella", "lo": 2, "hi": 14, "ulo": 5, "uhi": 6, "tail": false, "t": "5–6 d (2–14 d)", "path": "bac", "route": "env", "syn": "resp", "core": false, "clue": "Pneumonia ± hyponatraemia/diarrhoea after hotels/spas/cruises.", "test": "Urinary antigen + sputum PCR", "rare": true, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "u", "sb": "u", "vu": "u", "ki": "u", "tv": "u", "nc": "u", "pf": "u", "sas": "u", "mse": "u", "ise": "u", "ssa": "u", "naf": "u", "lac": "u", "nau": "u", "sau": "u", "nam": "u", "neu": "u"}}, {"label": "West Nile virus", "lo": 2, "hi": 14, "ulo": 3, "uhi": 10, "tail": false, "t": "3–10 d (2–14 d)", "path": "vir", "route": "mosq", "syn": "cns", "core": false, "clue": "Mostly asymptomatic/febrile; neuroinvasive (meningoencephalitis, flaccid paralysis) in <1%, esp. older adults.", "test": "Flavivirus IgM (serum/CSF); PCR low yield — reference lab.", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "u", "naf": "u", "lac": "absent", "nau": "absent", "sau": "absent", "nam": "u", "neu": "u"}}, {"label": "Melioidosis", "lo": 1, "hi": 21, "ulo": 4, "uhi": 9, "tail": true, "t": "4–9 d (1–21 d; latent for years)", "path": "bac", "route": "env", "syn": "resp", "core": false, "clue": "Pneumonia/sepsis/abscesses after wet-season soil/water; diabetes.", "test": "Culture (warn lab: B. pseudomallei); ID review", "rare": true, "g": {"fj": "u", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "u", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "u", "pf": "absent", "sas": "u", "mse": "c", "ise": "c", "ssa": "u", "naf": "absent", "lac": "u", "nau": "c", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Japanese encephalitis", "lo": 5, "hi": 15, "ulo": 6, "uhi": 10, "tail": false, "t": "6–10 d (5–15 d)", "path": "vir", "route": "mosq", "syn": "cns", "core": false, "clue": "Encephalitis after rural Asia / now Australia; movement disorder.", "test": "Flavivirus IgM CSF+serum via reference lab", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "u", "mse": "u", "ise": "u", "ssa": "absent", "naf": "absent", "lac": "absent", "nau": "u", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Viral haemorrhagic fever (Ebola, Marburg, Lassa, CCHF)", "lo": 2, "hi": 21, "ulo": 5, "uhi": 12, "tail": false, "t": "5–12 d (2–21 d)", "path": "vir", "route": "p2p", "syn": "vhf", "core": false, "clue": "HCID — apply risk assessment before phlebotomy (see guideline §2).", "test": "STOP: discuss with Clinical Microbiologist on call first", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "u", "mse": "absent", "ise": "absent", "ssa": "u", "naf": "u", "lac": "absent", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Ross River / Barmah Forest", "lo": 3, "hi": 21, "ulo": 7, "uhi": 9, "tail": false, "t": "7–9 d (3–21 d)", "path": "vir", "route": "mosq", "syn": "sys", "core": false, "clue": "Fever + polyarthralgia ± rash after Australia/Pacific.", "test": "Alphavirus serology via reference lab", "rare": true, "g": {"fj": "u", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "u", "sb": "u", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "absent", "naf": "absent", "lac": "absent", "nau": "c", "sau": "c", "nam": "absent", "neu": "absent"}}, {"label": "Leptospirosis", "lo": 2, "hi": 30, "ulo": 5, "uhi": 14, "tail": false, "t": "5–14 d (2–30 d)", "path": "bac", "route": "env", "syn": "sys", "core": true, "clue": "Myalgia (calves), conjunctival suffusion; severe = jaundice+AKI (Weil's).", "test": "PCR blood (wk1)/urine (later) + serology", "rare": false, "g": {"fj": "c", "ws": "c", "asm": "c", "to": "c", "ck": "c", "pg": "c", "sb": "c", "vu": "c", "ki": "c", "tv": "c", "nc": "c", "pf": "c", "sas": "c", "mse": "c", "ise": "c", "ssa": "c", "naf": "u", "lac": "c", "nau": "c", "sau": "u", "nam": "u", "neu": "c"}}, {"label": "Scrub typhus / other rickettsioses", "lo": 2, "hi": 21, "ulo": 6, "uhi": 12, "tail": false, "t": "6–12 d (2–21 d)", "path": "bac", "route": "arth", "syn": "sys", "core": false, "clue": "Fever, headache, rash ± eschar; thrombocytopenia, transaminitis.", "test": "Eschar/EDTA PCR; paired serology. Treat empirically: doxycycline.", "rare": false, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "u", "sb": "u", "vu": "u", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "c", "mse": "c", "ise": "c", "ssa": "u", "naf": "u", "lac": "u", "nau": "c", "sau": "u", "nam": "c", "neu": "u"}}, {"label": "Giardia / Cryptosporidium", "lo": 4, "hi": 20, "ulo": 6, "uhi": 15, "tail": true, "t": "6–15 d (can be prolonged)", "path": "par", "route": "food", "syn": "gi", "core": false, "clue": "Prolonged bloating, steatorrhoea, weight loss; usually afebrile.", "test": "Stool multiplex PCR / antigen", "rare": false, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "u", "sb": "u", "vu": "u", "ki": "u", "tv": "u", "nc": "u", "pf": "u", "sas": "u", "mse": "u", "ise": "u", "ssa": "u", "naf": "u", "lac": "u", "nau": "u", "sau": "u", "nam": "u", "neu": "u"}}, {"label": "MVE / Kunjin", "lo": 5, "hi": 28, "ulo": 7, "uhi": 14, "tail": false, "t": "7–14 d (5–28 d)", "path": "vir", "route": "mosq", "syn": "cns", "core": false, "clue": "Encephalitis after N/inland Australia, esp. after heavy rain.", "test": "Flavivirus IgM CSF+serum via reference lab", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "absent", "naf": "absent", "lac": "absent", "nau": "u", "sau": "u", "nam": "absent", "neu": "absent"}}, {"label": "Chagas disease (acute)", "lo": 5, "hi": 40, "ulo": 7, "uhi": 14, "tail": true, "t": "1–2 wk (acute)", "path": "par", "route": "arth", "syn": "sys", "core": false, "clue": "Often silent; chagoma/Romaña sign; triatomine exposure, rural L America.", "test": "Blood film/PCR (acute); serology; refer", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "absent", "naf": "absent", "lac": "u", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Lyme borreliosis", "lo": 3, "hi": 30, "ulo": 7, "uhi": 14, "tail": false, "t": "7–14 d (3–30 d)", "path": "bac", "route": "arth", "syn": "sys", "core": false, "clue": "Erythema migrans (expanding, often central-clearing rash) after Ixodes tick bite; later arthritis, carditis or neuroborreliosis.", "test": "Two-tier serology (EIA then immunoblot); PCR of synovial fluid where relevant. Treat clinically if EM present.", "rare": false, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "absent", "naf": "absent", "lac": "absent", "nau": "absent", "sau": "absent", "nam": "c", "neu": "c"}}, {"label": "Tick-borne encephalitis", "lo": 4, "hi": 28, "ulo": 7, "uhi": 14, "tail": false, "t": "7–14 d (4–28 d)", "path": "vir", "route": "arth", "syn": "cns", "core": false, "clue": "Biphasic: viraemic febrile phase then meningoencephalitis. Ixodes tick bite or unpasteurised dairy in endemic Europe/N Asia.", "test": "TBE IgM/IgG serology (serum/CSF) — reference lab. Supportive care; vaccine-preventable.", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "absent", "naf": "absent", "lac": "absent", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "u"}}, {"label": "Malaria – P. falciparum", "lo": 6, "hi": 180, "ulo": 9, "uhi": 14, "tail": true, "t": "9–14 d (6 d–6 mo, rarely longer)", "path": "par", "route": "mosq", "syn": "sys", "core": true, "clue": "Any fever after endemic travel; may have no localising signs. Thrombocytopenia common.", "test": "Malaria LAMP + films (urgent); repeat 12–24 h if negative", "rare": false, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "c", "sb": "c", "vu": "c", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "c", "mse": "u", "ise": "u", "ssa": "c", "naf": "u", "lac": "u", "nau": "absent", "sau": "absent", "nam": "u", "neu": "absent"}}, {"label": "Measles", "lo": 7, "hi": 21, "ulo": 10, "uhi": 14, "tail": false, "t": "10–14 d (7–21 d)", "path": "vir", "route": "p2p", "syn": "sys", "core": false, "clue": "Fever, cough, coryza, conjunctivitis, Koplik spots, then rash.", "test": "PCR throat swab+urine; IgM. Airborne isolation (vaccine-coverage dependent, global).", "rare": true, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "c", "sb": "u", "vu": "u", "ki": "c", "tv": "u", "nc": "u", "pf": "u", "sas": "c", "mse": "u", "ise": "c", "ssa": "c", "naf": "u", "lac": "u", "nau": "u", "sau": "u", "nam": "u", "neu": "u"}}, {"label": "Enteric fever (typhoid / paratyphoid)", "lo": 3, "hi": 60, "ulo": 7, "uhi": 21, "tail": true, "t": "7–21 d (3–60 d)", "path": "bac", "route": "food", "syn": "sys", "core": true, "clue": "Sustained fever ± abdominal symptoms; normal WCC, eosinopenia, mild transaminitis.", "test": "2× blood cultures before antibiotics; stool culture. No serology.", "rare": false, "g": {"fj": "c", "ws": "c", "asm": "u", "to": "u", "ck": "u", "pg": "c", "sb": "u", "vu": "u", "ki": "u", "tv": "u", "nc": "absent", "pf": "absent", "sas": "c", "mse": "u", "ise": "u", "ssa": "u", "naf": "u", "lac": "u", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "African trypanosomiasis", "lo": 3, "hi": 21, "ulo": 7, "uhi": 21, "tail": true, "t": "1–3 wk (E. African)", "path": "par", "route": "arth", "syn": "cns", "core": false, "clue": "Fever ± chancre after game parks (East Africa); later CNS.", "test": "Blood film/PCR; serology; refer", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "u", "naf": "absent", "lac": "absent", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Q fever", "lo": 14, "hi": 39, "ulo": 14, "uhi": 21, "tail": false, "t": "2–3 wk (2–6 wk)", "path": "bac", "route": "env", "syn": "sys", "core": false, "clue": "Fever ± pneumonia/hepatitis after livestock/abattoir/birthing animals.", "test": "Serology (phase I/II); PCR early", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "u", "mse": "u", "ise": "u", "ssa": "u", "naf": "c", "lac": "u", "nau": "c", "sau": "u", "nam": "u", "neu": "u"}}, {"label": "Malaria – P. vivax / P. ovale", "lo": 12, "hi": 365, "ulo": 12, "uhi": 30, "tail": true, "t": "12–30 d (to >1 yr; relapses)", "path": "par", "route": "mosq", "syn": "sys", "core": false, "clue": "Relapse months–years after travel; vivax dominates S Asia.", "test": "Malaria LAMP + films; note relapse potential", "rare": false, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "c", "sb": "c", "vu": "c", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "c", "mse": "u", "ise": "u", "ssa": "u", "naf": "absent", "lac": "u", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Brucellosis", "lo": 7, "hi": 60, "ulo": 14, "uhi": 28, "tail": true, "t": "2–4 wk (1 wk–months)", "path": "bac", "route": "food", "syn": "sys", "core": false, "clue": "Undulant fever, sweats, arthralgia after unpasteurised dairy / animal contact.", "test": "Blood culture (warn lab); serology", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "u", "mse": "absent", "ise": "absent", "ssa": "u", "naf": "c", "lac": "u", "nau": "u", "sau": "absent", "nam": "absent", "neu": "u"}}, {"label": "Acute HIV seroconversion", "lo": 10, "hi": 42, "ulo": 14, "uhi": 28, "tail": false, "t": "2–4 wk (10 d–6 wk)", "path": "vir", "route": "p2p", "syn": "sys", "core": false, "clue": "Fever, rash, pharyngitis, lymphadenopathy after new sexual contact.", "test": "HIV Ag/Ab; repeat at 4–6 wk if negative", "rare": false, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "u", "sb": "u", "vu": "u", "ki": "u", "tv": "u", "nc": "u", "pf": "u", "sas": "u", "mse": "u", "ise": "u", "ssa": "u", "naf": "u", "lac": "u", "nau": "u", "sau": "u", "nam": "u", "neu": "u"}}, {"label": "Hantavirus (Old World / HFRS)", "lo": 7, "hi": 42, "ulo": 14, "uhi": 28, "tail": true, "t": "2–4 wk (1–6 wk)", "path": "vir", "route": "env", "syn": "sys", "core": false, "clue": "Haemorrhagic fever with renal syndrome after rodent-excreta exposure (Europe/Asia); fever, AKI, thrombocytopenia.", "test": "Hantavirus serology (IgM/IgG); PCR early — reference lab.", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "u", "mse": "u", "ise": "u", "ssa": "absent", "naf": "absent", "lac": "absent", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "u"}}, {"label": "Hantavirus (New World / HPS)", "lo": 7, "hi": 42, "ulo": 14, "uhi": 28, "tail": true, "t": "2–4 wk (1–6 wk)", "path": "vir", "route": "env", "syn": "resp", "core": false, "clue": "Hantavirus cardiopulmonary syndrome after rodent-excreta exposure (Americas); prodrome then rapid respiratory failure.", "test": "Hantavirus serology (IgM/IgG); PCR — reference lab. High mortality; supportive/ICU.", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "absent", "ise": "absent", "ssa": "absent", "naf": "absent", "lac": "u", "nau": "absent", "sau": "absent", "nam": "u", "neu": "absent"}}, {"label": "Bartonellosis", "lo": 5, "hi": 60, "ulo": 14, "uhi": 42, "tail": true, "t": "2–6 wk (5 d–months)", "path": "bac", "route": "arth", "syn": "sys", "core": false, "clue": "Clumped entry: cat-scratch disease (regional lymphadenopathy after cat/kitten contact) and other Bartonella spp.; endocarditis in some.", "test": "Serology; PCR of tissue/blood; discuss with ID/Micro. Consider in culture-negative endocarditis.", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "u", "mse": "u", "ise": "u", "ssa": "u", "naf": "u", "lac": "u", "nau": "absent", "sau": "absent", "nam": "u", "neu": "u"}}, {"label": "Endemic mycoses", "lo": 7, "hi": 120, "ulo": 14, "uhi": 45, "tail": true, "t": "clumped — see specialist references", "path": "fungal", "route": "env", "syn": "resp", "core": false, "clue": "Beyond this tool's scope. Consider after caves/soil/construction or in advanced HIV; look elsewhere for detail.", "test": "Antigen/serology/culture — discuss with ID/Micro", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "u", "ise": "u", "ssa": "u", "naf": "absent", "lac": "u", "nau": "absent", "sau": "absent", "nam": "u", "neu": "absent"}}, {"label": "Acute hepatitis A / E", "lo": 15, "hi": 64, "ulo": 25, "uhi": 40, "tail": false, "t": "4–6 wk (2–9 wk)", "path": "vir", "route": "food", "syn": "gi", "core": false, "clue": "Prodromal fever settles as jaundice appears; HEV severe in pregnancy.", "test": "HAV IgM; HEV IgM ± PCR", "rare": false, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "c", "sb": "u", "vu": "u", "ki": "u", "tv": "u", "nc": "u", "pf": "u", "sas": "c", "mse": "u", "ise": "c", "ssa": "c", "naf": "u", "lac": "u", "nau": "u", "sau": "u", "nam": "absent", "neu": "absent"}}, {"label": "Acute schistosomiasis (Katayama)", "lo": 14, "hi": 84, "ulo": 28, "uhi": 56, "tail": false, "t": "4–8 wk (2–12 wk)", "path": "par", "route": "env", "syn": "sys", "core": false, "clue": "Fever, urticaria, cough, eosinophilia after freshwater exposure.", "test": "Serology (repeat 12 wk); stool/urine microscopy from 8–12 wk", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "absent", "mse": "u", "ise": "u", "ssa": "c", "naf": "absent", "lac": "u", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Rabies / ABLV", "lo": 10, "hi": 365, "ulo": 20, "uhi": 90, "tail": true, "t": "3–12 wk (10 d–years)", "path": "vir", "route": "env", "syn": "cns", "core": false, "clue": "Encephalitis/ascending paralysis after mammal or any bat contact.", "test": "Reference-lab PCR/antibody; prioritise PEP for the exposed", "rare": true, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "u", "sb": "u", "vu": "u", "ki": "u", "tv": "u", "nc": "u", "pf": "u", "sas": "c", "mse": "c", "ise": "c", "ssa": "u", "naf": "u", "lac": "u", "nau": "u", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Amoebic liver abscess", "lo": 14, "hi": 365, "ulo": 56, "uhi": 140, "tail": true, "t": "8–20 wk (2 wk–years)", "path": "par", "route": "food", "syn": "gi", "core": false, "clue": "RUQ pain, neutrophilia, raised ALP; often no diarrhoea.", "test": "USS/CT; Entamoeba serology; stool PCR", "rare": true, "g": {"fj": "absent", "ws": "absent", "asm": "absent", "to": "absent", "ck": "absent", "pg": "absent", "sb": "absent", "vu": "absent", "ki": "absent", "tv": "absent", "nc": "absent", "pf": "absent", "sas": "u", "mse": "u", "ise": "u", "ssa": "u", "naf": "absent", "lac": "u", "nau": "absent", "sau": "absent", "nam": "absent", "neu": "absent"}}, {"label": "Tuberculosis (reactivation / active)", "lo": 42, "hi": 3650, "ulo": 60, "uhi": 365, "tail": true, "t": "weeks–years", "path": "bac", "route": "p2p", "syn": "resp", "core": false, "clue": "Cough, sweats, weight loss; often long after exposure.", "test": "CXR; sputum PCR/culture; IGRA", "rare": false, "g": {"fj": "u", "ws": "u", "asm": "u", "to": "u", "ck": "u", "pg": "c", "sb": "u", "vu": "u", "ki": "c", "tv": "u", "nc": "u", "pf": "u", "sas": "c", "mse": "u", "ise": "c", "ssa": "c", "naf": "u", "lac": "u", "nau": "u", "sau": "u", "nam": "u", "neu": "u"}}]};
+const ROUTE = {mosq:"Mosquito",arth:"Tick, mite, sandfly",food:"Food &amp; water",env:"Water, soil, animal or aerosol",p2p:"Person to person"};
+const SYN = {sys:"Undifferentiated / systemic",gi:"Enteric or hepatic",resp:"Respiratory",cns:"CNS",vhf:"Haemorrhagic (HCID)"};
+const PATH = {vir:"Viral",bac:"Bacterial",par:"Parasitic / other",fungal:"Parasitic / other"};
+const PATHKEY = {vir:"vir",bac:"bac",par:"par",fungal:"par"};   // organism buckets: fungal folds into par/other
+const SCHEMES = {
+  route:{pal:ROUTE, get:i=>i.route},
+  syn:{pal:SYN, get:i=>i.syn},
+  path:{pal:{vir:"Viral",bac:"Bacterial",par:"Parasitic / other"}, get:i=>PATHKEY[i.path]}
+};
+const BANDS=[[0,7],[8,14],[15,21],[22,100000]];
+let state={scheme:"route",region:"all",band:null,showRare:true,selected:null};
+let exp={content:"shown",colour:"full",range:"on",paper:"a4l"};
+
+const $=s=>document.querySelector(s);
+const svg=$("#svg");
+// Resolve CSS custom properties to concrete colours (needed for detached export SVGs,
+// where var(--x) does not inherit into a new window/canvas).
+function cssVars(){
+  const cs=getComputedStyle(document.documentElement);
+  const names=["ink","mute","faint","line","panel","band","accent","navy",
+    "vir","bac","par","fun","other","mosq","arth","food","env","p2p",
+    "sys","gi","resp","cns","vhf","fungal"];
+  const m={};
+  names.forEach(n=>{m["--"+n]=(cs.getPropertyValue("--"+n)||"").trim()||"#000";});
+  return m;
+}
+function darkenHex(hex,amt){
+  // amt 0..1 toward black; hex like #RRGGBB
+  const m=/^#?([0-9a-f]{6})$/i.exec((hex||"").trim()); if(!m) return hex||"#000";
+  const n=parseInt(m[1],16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  r=Math.round(r*(1-amt)); g=Math.round(g*(1-amt)); b=Math.round(b*(1-amt));
+  return "#"+[r,g,b].map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+function resolveColours(svgStr){
+  const m=cssVars();
+  return svgStr.replace(/var\((--[a-z0-9]+)\)/g,(_,v)=> m[v]||"#000");
+}
+const rsel=$("#region");
+DATA.regions.forEach(r=>{const o=document.createElement("option");o.value=r.id;o.textContent=r.name;rsel.appendChild(o);});
+
+function palVar(k,grey){ return grey ? "#4B5563" : "var(--"+k+")"; }
+function colorOf(inf,grey){
+  const s=SCHEMES[state.scheme]; return palVar(s.get(inf),grey);
+}
+function gradeOf(inf){ return state.region==="all" ? "c" : (inf.g[state.region]||"absent"); }
+
+const XMIN=0.4,XMAX=520;
+const lx=d=>Math.log(d)/Math.log(10);
+const xnorm=d=>(lx(d)-lx(XMIN))/(lx(XMAX)-lx(XMIN));
+
+// opts allow the export renderer to override live state
+function build(opts){
+  opts=opts||{};
+  const scheme=opts.scheme||state.scheme;
+  const region=opts.region!==undefined?opts.region:state.region;
+  const band=opts.band!==undefined?opts.band:state.band;
+  const grey=!!opts.grey;
+  const showRange=opts.showRange!==undefined?opts.showRange:true;
+  const isExport=!!opts.export;
+  const target=opts.svg||svg;
+
+  const gradeIn=inf=> region==="all"?"c":(inf.g[region]||"absent");
+  const compatIn=inf=>{ if(band===null||band===undefined) return true; const [b0,b1]=BANDS[band]; const hi=inf.tail?1e9:inf.hi; return hi>=b0&&inf.lo<=b1; };
+  const getk=SCHEMES[scheme].get;
+
+  const showRare = (opts.showRare!==undefined) ? opts.showRare : state.showRare;
+  let rows=DATA.infections.filter(inf=>showRare || !inf.rare).map(inf=>({inf}));
+  rows.forEach(r=>{r.grade=gradeIn(r.inf);r.absent=(r.grade==="absent");});
+  const mid=r=>Math.sqrt(r.inf.ulo*r.inf.uhi);
+  rows.sort((a,b)=>(a.absent-b.absent)||(mid(a)-mid(b)));
+
+  const n=rows.length;
+  const GUTTER=20;                                  // reserved left column for the uncommon-here dot
+  const L=430+GUTTER, R=showRange?300:70, TOP=54, RH=26, W=(showRange?1330:1240)+GUTTER;
+  const PLOT=W-L-R;
+  const PLOT_R_EDGE=L+PLOT; // px(XMAX): uniform dotted terminus at plot edge
+  const H=TOP+n*RH+66;
+  target.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const px=d=>L+xnorm(d)*PLOT;
+  let out="";
+
+  // 10-21 d guide band: subtle on export (pale), a little stronger on-screen.
+  const bandFill = grey ? "#D1D5DB" : "#94A3B8";
+  const bandOp = isExport ? (grey?0.22:0.14) : 0.6;
+  out+=`<rect x="${px(10)}" y="${TOP-22}" width="${px(21)-px(10)}" height="${n*RH+30}" fill="${isExport?bandFill:(grey?'#E5E7EB':'var(--band)')}" opacity="${bandOp}"/>`;
+  [1,7,30,90,365].forEach(d=>{out+=`<line class="grid" x1="${px(d)}" y1="${TOP-22}" x2="${px(d)}" y2="${TOP+n*RH+6}" stroke="${grey?'#E5E7EB':'var(--line)'}"/>`;});
+  [10,21].forEach(d=>{out+=`<line x1="${px(d)}" y1="${TOP-22}" x2="${px(d)}" y2="${TOP+n*RH+6}" stroke="${grey?'#9CA3AF':'var(--faint)'}"/>`;});
+  out+=`<text class="band-h" x="${px(2)}" y="${TOP-30}" text-anchor="middle">SHORT &lt; 10 d</text>`;
+  out+=`<text class="band-h" x="${(px(10)+px(21))/2}" y="${TOP-30}" text-anchor="middle">10–21 d</text>`;
+  out+=`<text class="band-h" x="${px(110)}" y="${TOP-30}" text-anchor="middle">PROLONGED &gt; 21 d</text>`;
+  if(showRange) out+=`<text class="band-h" x="${L+PLOT+10}" y="${TOP-30}" text-anchor="start">Usual (range)</text>`;
+
+  if(band!==null&&band!==undefined){
+    const [b0,b1]=BANDS[band];
+    const x1=px(Math.max(b0,XMIN)),x2=px(Math.min(b1,XMAX));
+    out+=`<rect x="${x1}" y="${TOP-22}" width="${x2-x1}" height="${n*RH+30}" fill="${grey?'#111827':'var(--accent)'}" opacity="0.07"/>`;
+    out+=`<line x1="${x1}" y1="${TOP-22}" x2="${x1}" y2="${TOP+n*RH+6}" stroke="${grey?'#111827':'var(--accent)'}" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    if(b1<XMAX) out+=`<line x1="${x2}" y1="${TOP-22}" x2="${x2}" y2="${TOP+n*RH+6}" stroke="${grey?'#111827':'var(--accent)'}" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+  }
+
+  rows.forEach((r,idx)=>{
+    const y=TOP+idx*RH+RH/2, inf=r.inf;
+    const col=grey?"#4B5563":"var(--"+getk(inf)+")";
+    const compatible=compatIn(inf);
+    const dim=r.absent||((band!==null&&band!==undefined)&&!compatible);
+    // Row stripe: faint in colour; none in greyscale export. On-screen keeps the panel tint.
+    if(idx%2===0){
+      if(grey){ /* no stripe in greyscale export */ }
+      else if(isExport){ out+=`<rect class="rowbg" x="0" y="${y-RH/2}" width="${W}" height="${RH}" fill="#000" opacity="0.035"/>`; }
+      else { out+=`<rect class="rowbg" x="0" y="${y-RH/2}" width="${W}" height="${RH}" fill="var(--panel)" opacity="0.55"/>`; }
+    }
+    out+=`<g class="rowhit ${dim?'fade':''}" data-i="${inf.label}">`;
+    out+=`<rect class="rowbg" x="0" y="${y-RH/2}" width="${W}" height="${RH}" fill="transparent"/>`;
+    const lc=["lbl",inf.core?"core":"",r.absent?"absent":""].join(" ");
+    const dataKey=getk(inf);
+    out+=`<text class="${lc}" data-key="${dataKey}" data-core="${inf.core?1:0}" data-absent="${r.absent?1:0}" x="${L-12}" y="${y+4}" text-anchor="end">${esc(inf.label)}</text>`;
+    if(!r.absent){
+      // For open-ended (tail) infections, cap the visible solid range at a common point
+      // so an extreme hi (e.g. TB 10 yr) doesn't run into the range-text column. All tails
+      // then share the same short dotted terminus just inside the plot.
+      const visHi = inf.tail ? Math.min(inf.hi, 300) : inf.hi;   // 300 d ≈ just left of the 365 tick
+      const tailEnd = PLOT_R_EDGE;                                // uniform dotted terminus (see below)
+      out+=`<line x1="${px(inf.lo)}" y1="${y}" x2="${px(visHi)}" y2="${y}" stroke="${col}" stroke-width="1.3"/>`;
+      out+=`<line x1="${px(inf.lo)}" y1="${y-4}" x2="${px(inf.lo)}" y2="${y+4}" stroke="${col}" stroke-width="1.3"/>`;
+      if(!inf.tail) out+=`<line x1="${px(inf.hi)}" y1="${y-4}" x2="${px(inf.hi)}" y2="${y+4}" stroke="${col}" stroke-width="1.3"/>`;
+      else out+=`<line x1="${px(visHi)}" y1="${y}" x2="${tailEnd}" y2="${y}" stroke="${col}" stroke-width="1.3" stroke-dasharray="1 2.5"/>`;
+      out+=`<line x1="${px(inf.ulo)}" y1="${y}" x2="${px(inf.uhi)}" y2="${y}" stroke="${col}" stroke-width="7.5"/>`;
+      if(r.grade==="u"){
+        const mc = grey?'#6B7280':'#B45309';   // amber in colour, grey in greyscale
+        const DOTX=GUTTER/2;                    // centred in the reserved left gutter
+        out+=`<circle cx="${DOTX}" cy="${y}" r="3" fill="${mc}"/>`;
+      }
+      if(showRange) out+=`<text class="rng" x="${L+PLOT+10}" y="${y+4}" text-anchor="start" ${inf.core?'font-weight="bold"':''}>${esc(inf.t)}</text>`;
+    } else if(showRange){
+      out+=`<text class="rng" x="${L+PLOT+10}" y="${y+4}" text-anchor="start">not reported here</text>`;
+    }
+    out+=`</g>`;
+  });
+
+  const ticks=[0.5,1,2,3,5,7,10,14,21,30,60,90,180,365];
+  const ay=TOP+n*RH+14;
+  out+=`<line class="grid" x1="${L}" y1="${ay}" x2="${L+PLOT}" y2="${ay}" stroke="${grey?'#E5E7EB':'var(--line)'}"/>`;
+  ticks.forEach(t=>{out+=`<text class="tick" x="${px(t)}" y="${ay+14}" text-anchor="middle">${t}</text>`;});
+  [["7","1 wk"],["14","2 wk"],["30","1 mo"],["90","3 mo"],["365","1 yr"]].forEach(([d,l])=>{
+    out+=`<text class="tick" x="${px(+d)}" y="${ay+28}" text-anchor="middle" font-weight="bold" fill="${grey?'#6B7280':'var(--mute)'}">${l}</text>`;});
+  out+=`<text class="tick" x="${L+PLOT/2}" y="${ay+46}" text-anchor="middle">Days from exposure to first symptom (log scale)</text>`;
+
+  target.innerHTML=out;
+  if(target===svg) target.querySelectorAll(".rowhit").forEach(g=>g.addEventListener("click",()=>openPanel(g.dataset.i)));
+  return {W,H};
+}
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+
+function renderLegend(){
+  const s=SCHEMES[state.scheme];const el=$("#legend");let h="";
+  Object.entries(s.pal).forEach(([k,v])=>{h+=key("var(--"+k+")",v);});
+  h+=`<span class="k"><span class="sw" style="background:var(--mute)"></span>Usual window</span>`;
+  h+=`<span class="k"><span class="swL" style="color:var(--mute)"></span>Reported range</span>`;
+  h+=`<span class="k"><span style="display:inline-block;width:8px;height:8px;background:#B45309;border-radius:50%;"></span>Uncommon in this region</span>`;
+  el.innerHTML=h;
+}
+function key(c,l){return `<span class="k"><span class="sw" style="background:${c}"></span>${l}</span>`;}
+
+function status(){
+  const rn=DATA.regions.find(r=>r.id===state.region).name;
+  let present=DATA.infections.filter(i=>gradeOf(i)!=="absent").length;
+  let msg=state.region==="all"?`All ${DATA.infections.length} entries shown.`:
+    `${rn}: ${present} of ${DATA.infections.length} entries reported; others greyed below.`;
+  if(state.band!==null){
+    const names=["≤7 d","8–14 d","15–21 d",">21 d"][state.band];
+    const c=DATA.infections.filter(i=>gradeOf(i)!=="absent"&&(()=>{const[b0,b1]=BANDS[state.band];const hi=i.tail?1e9:i.hi;return hi>=b0&&i.lo<=b1;})()).length;
+    msg+=` Highlighting ${names}: ${c} compatible.`;
+  }
+  $("#status").textContent=msg;
+}
+
+function openPanel(label){
+  const inf=DATA.infections.find(i=>i.label===label);if(!inf)return;
+  $("#pname").innerHTML=esc(inf.label);
+  $("#ptags").innerHTML=`<span class="tag" style="background:${'var(--'+inf.route+')'}">${ROUTE[inf.route]}</span> `+
+    `<span class="tag" style="background:${'var(--'+inf.syn+')'};margin-left:4px">${SYN[inf.syn]}</span>`;
+  $("#ptime").textContent=inf.t; $("#pclue").textContent=inf.clue; $("#ptest").textContent=inf.test;
+  const g=gradeOf(inf);const rn=DATA.regions.find(r=>r.id===state.region).name;
+  $("#pgrade").innerHTML=state.region==="all"?"Select a region to grade.":
+    (g==="c"?`<strong>Common</strong> in ${esc(rn)}`:g==="u"?`Uncommon in ${esc(rn)}`:`Not typically reported in ${esc(rn)}`);
+  $("#pmeta").textContent=PATH[inf.path]+" · "+ROUTE[inf.route].replace(/&amp;/g,"&")+" · "+SYN[inf.syn];
+  $("#panel").classList.add("open");$("#panel").setAttribute("aria-hidden","false");
+}
+$("#pclose").addEventListener("click",()=>{$("#panel").classList.remove("open");$("#panel").setAttribute("aria-hidden","true");});
+
+$("#scheme").addEventListener("change",e=>{state.scheme=e.target.value;renderLegend();build();});
+rsel.addEventListener("change",e=>{state.region=e.target.value;build();status();});
+$("#bands").addEventListener("click",e=>{
+  const c=e.target.closest(".chip");if(!c)return;
+  const v=c.dataset.band;
+  state.band=(v==="off")?null:+v;
+  [...e.currentTarget.children].forEach(x=>x.setAttribute("aria-pressed", x===c ));
+  build();status();
+});
+$("#rareToggle").addEventListener("change",e=>{
+  state.showRare=e.target.checked; build(); status();
+});
+$("#reset").addEventListener("click",()=>{
+  state={scheme:"route",region:"all",band:null,showRare:true,selected:null};
+  $("#scheme").value="route"; rsel.value="all";
+  $("#rareToggle").checked=true;
+  [...$("#bands").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.band==="off"));
+  renderLegend();build();status();
+});
+
+// ---- export ----
+function segInit(id,key){
+  const el=$("#"+id);
+  el.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+    exp[key]=b.dataset.v;[...el.children].forEach(x=>x.setAttribute("aria-pressed",x===b));});
+}
+segInit("exContent","content");segInit("exColour","colour");segInit("exRange","range");segInit("exPaper","paper");
+$("#openExport").addEventListener("click",()=>$("#modal").classList.add("open"));
+$("#exCancel").addEventListener("click",()=>$("#modal").classList.remove("open"));
+$("#modal").addEventListener("click",e=>{if(e.target.id==="modal")$("#modal").classList.remove("open");});
+
+function exportOpts(){
+  return exp.content==="full"
+    ? {region:"all",band:null,scheme:state.scheme,grey:exp.colour==="grey",showRange:exp.range==="on"}
+    : {region:state.region,band:state.band,scheme:state.scheme,grey:exp.colour==="grey",showRange:exp.range==="on"};
+}
+function settingsCaption(){
+  const schemeName={route:"Route of acquisition",syn:"Presenting syndrome",path:"Organism"}[state.scheme];
+  const regionName = (exp.content==="full") ? "All regions (full)" :
+    (state.region==="all" ? "All regions" : DATA.regions.find(r=>r.id===state.region).name);
+  const daysName = (exp.content==="full") ? "not applied" :
+    (state.band===null ? "not applied" : ["\u22647 days","8\u201314 days","15\u201321 days",">21 days"][state.band]);
+  const parts=[];
+  if(exp.colour!=="grey") parts.push("Colour by: "+schemeName);
+  parts.push("Region: "+regionName);
+  parts.push("Days since leaving: "+daysName);
+  return parts.join("  \u00b7  ");
+}
+function legendItems(){
+  const s=SCHEMES[state.scheme];
+  const vars=cssVars();
+  const keymap={route:ROUTE,syn:SYN,path:{vir:"Viral",bac:"Bacterial",par:"Parasitic / other"}}[state.scheme];
+  return Object.keys(keymap).map(k=>({
+    colour: darkenHex(vars["--"+k]||"#334155",0.30),
+    label: keymap[k].replace(/&amp;/g,"&")
+  }));
+}
+function renderExportSVG(){
+  const NS="http://www.w3.org/2000/svg";
+  const tmp=document.createElementNS(NS,"svg");
+  const eo=exportOpts();
+  const grey=!!eo.grey;
+  const dim=build(Object.assign({svg:tmp,export:true},eo));
+  // Snapshot the concrete colour for each scheme key BEFORE stripping variables.
+  const vars=cssVars();
+  // Swap any remaining CSS variables for concrete colours so the SVG renders standalone.
+  tmp.innerHTML=resolveColours(tmp.innerHTML);
+  // Force light-theme ink for export regardless of the on-screen theme (exports are for paper).
+  const INK="#1F2937", MUTE="#6B7280", FAINT="#9CA3AF";
+  tmp.querySelectorAll("text").forEach(t=>{
+    t.setAttribute("font-family",EXPORT_FONT);   // always apply export font
+    if(t.getAttribute("fill")) return;           // colours already set inline (e.g. bold wk/mo markers)
+    const c=t.getAttribute("class")||"";
+    if(c.includes("band-h")){ t.setAttribute("fill",MUTE); t.setAttribute("font-size","10.5px"); return; }
+    if(c.includes("rng")){ t.setAttribute("fill",MUTE); t.setAttribute("font-size","10.5px"); return; }
+    if(c.includes("tick")){ t.setAttribute("fill",MUTE); return; }
+    if(c.includes("lbl")){
+      const isAbsent=t.getAttribute("data-absent")==="1";
+      const isCore=t.getAttribute("data-core")==="1";
+      const key=t.getAttribute("data-key");
+      if(isAbsent){ t.setAttribute("fill",FAINT); t.setAttribute("font-style","italic"); }
+      else { t.setAttribute("fill","#1F2937"); }   // near-black names; bars + legend carry the colour coding
+      if(isCore) t.setAttribute("font-weight","bold");
+      return;
+    }
+    t.setAttribute("fill",INK);
+  });
+  return {tmp,dim};
+}
+const PAPER={a4l:[1122,794],a4p:[794,1122],a5l:[794,559],a5p:[559,794]}; // px at ~96dpi
+
+$("#exPrint").addEventListener("click",()=>{
+  const {tmp,dim}=renderExportSVG();
+  // Make a fully standalone SVG string: xmlns + viewBox + responsive sizing.
+  tmp.setAttribute("xmlns",NS_SVG);
+  tmp.setAttribute("viewBox","0 0 "+dim.W+" "+dim.H);
+  tmp.setAttribute("preserveAspectRatio","xMidYMid meet");
+  tmp.removeAttribute("width"); tmp.removeAttribute("height");
+  const svgStr=new XMLSerializer().serializeToString(tmp);
+  const portrait=exp.paper[exp.paper.length-1]==='p';
+  const title="Fever in the returned traveller — incubation periods";
+  const caption=settingsCaption();
+  const style=`@page{size:${exp.paper.startsWith('a5')?'A5':'A4'} ${portrait?'portrait':'landscape'};margin:7mm;}
+    html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:Arial, 'Liberation Sans', 'Helvetica Neue', Helvetica, sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .t{font-size:12px;font-weight:bold;color:#1F3A5F;margin:0 0 2px;}
+    .cap{font-size:10px;color:#6B7280;margin:0 0 3px;}
+    .leg{font-size:10px;color:#374151;margin:0 0 5px;display:flex;flex-wrap:wrap;gap:4px 14px;}
+    .leg .k{display:inline-flex;align-items:center;gap:5px;}
+    .leg .sw{width:16px;height:8px;border-radius:2px;display:inline-block;}
+    .fig{width:100%;}
+    .fig svg{width:100%;height:auto;max-height:calc(100vh - 26mm);display:block;margin:0 auto;}
+    @media print{ .fig{page-break-inside:avoid;} }`;
+  const w=window.open("","_blank");
+  w.document.open();
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+title+'</title><style>'+style+'</style></head><body>'+
+    '<div class="t">'+title+'</div><div class="cap">'+caption+'</div>'+
+    (exp.colour!=='grey' ? '<div class="leg">'+legendItems().map(function(it){return '<span class="k"><span class="sw" style="background:'+it.colour+'"></span>'+it.label+'</span>';}).join('')+'</div>' : '')+
+    '<div class="fig">'+svgStr+'</div>'+
+    '<script>window.onload=function(){setTimeout(function(){window.focus();window.print();},300);};<\/script>'+
+    '</body></html>');
+  w.document.close();
+  $("#modal").classList.remove("open");
+});
+
+const NS_SVG="http://www.w3.org/2000/svg";
+$("#exPng").addEventListener("click",async()=>{
+  const {tmp,dim}=renderExportSVG();
+  tmp.setAttribute("xmlns",NS_SVG);
+  tmp.setAttribute("viewBox","0 0 "+dim.W+" "+dim.H);
+  tmp.setAttribute("width",dim.W); tmp.setAttribute("height",dim.H);
+  const scale=2;
+  const svgStr='<?xml version="1.0" encoding="UTF-8"?>'+new XMLSerializer().serializeToString(tmp);
+  const img=new Image();
+  const blob=new Blob([svgStr],{type:"image/svg+xml;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const title="Fever in the returned traveller — incubation periods";
+  const caption=settingsCaption();
+  const legend = exp.colour!=='grey' ? legendItems() : [];
+  const HEAD = 44 + (legend.length ? 22 : 0); // title + caption (+ legend row when colour)
+  const PAD = 16;                                // left/right margin so nothing is flush to the edge
+  img.onload=async()=>{
+    const cv=document.createElement("canvas");
+    cv.width=(dim.W+PAD*2)*scale;cv.height=(dim.H+HEAD)*scale;
+    const ctx=cv.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.setTransform(scale,0,0,scale,0,0);
+    ctx.textBaseline="alphabetic";
+    ctx.fillStyle="#1F3A5F";ctx.font="bold 15px Arial, 'Liberation Sans', 'Helvetica Neue', Helvetica, sans-serif";
+    ctx.fillText(title,PAD+4,22);
+    ctx.fillStyle="#6B7280";ctx.font="12px Arial, 'Liberation Sans', 'Helvetica Neue', Helvetica, sans-serif";
+    ctx.fillText(caption,PAD+4,39);
+    if(legend.length){
+      let lx=PAD+4; const ly=54;
+      ctx.font="11px Arial, 'Liberation Sans', 'Helvetica Neue', Helvetica, sans-serif";
+      legend.forEach(it=>{
+        ctx.fillStyle=it.colour; ctx.fillRect(lx,ly-8,16,8);
+        ctx.fillStyle="#374151"; const tw=ctx.measureText(it.label).width;
+        ctx.fillText(it.label,lx+20,ly);
+        lx += 20 + tw + 18;
+      });
+    }
+    ctx.drawImage(img,PAD,HEAD,dim.W,dim.H);
+    URL.revokeObjectURL(url);
+    cv.toBlob(async(png)=>{
+      const fn="fever_incubation"+(exp.content==='shown'&&state.region!=='all'?'_'+state.region:'')+(exp.colour==='grey'?'_grey':'')+".png";
+      let saved=false;
+      try{
+        const downloads=await claude.use("downloads");
+        if(downloads){ const buf=new Uint8Array(await png.arrayBuffer());
+          await downloads.save({filename:fn,data:buf}); saved=true; }
+      }catch(e){}
+      if(!saved){
+        const a=document.createElement("a");a.href=URL.createObjectURL(png);a.download=fn;
+        document.body.appendChild(a);a.click();a.remove();
+      }
+      $("#modal").classList.remove("open");
+    },"image/png");
+  };
+  img.onerror=()=>{alert("PNG export failed in this browser; use Print / PDF instead.");URL.revokeObjectURL(url);};
+  img.src=url;
+});
+
+
+// ---- theme ----
+(function(){
+  const seg=document.querySelector("#themeSeg");
+  if(!seg) return;
+  function apply(t){
+    if(t==="system"){document.documentElement.removeAttribute("data-theme");}
+    else{document.documentElement.setAttribute("data-theme",t);}
+    [...seg.children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));
+  }
+  let saved="system";
+  try{saved=localStorage.getItem("ftrt-theme")||"system";}catch(e){}
+  apply(saved);
+  seg.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+    apply(b.dataset.t);try{localStorage.setItem("ftrt-theme",b.dataset.t);}catch(e){}});
+})();
+// ---- info modal ----
+(function(){
+  const open=document.querySelector("#openInfo"), modal=document.querySelector("#infoModal"),
+        close=document.querySelector("#infoClose");
+  if(open&&modal) open.addEventListener("click",()=>modal.classList.add("open"));
+  if(close&&modal) close.addEventListener("click",()=>modal.classList.remove("open"));
+  if(modal) modal.addEventListener("click",e=>{if(e.target===modal)modal.classList.remove("open");});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"){
+    if(modal)modal.classList.remove("open");
+    const ex=document.querySelector("#modal"); if(ex)ex.classList.remove("open");
+  }});
+})();
+
+renderLegend();build();status();
+
+</script>
+</body>
+</html>
