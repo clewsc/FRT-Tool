@@ -1,8 +1,8 @@
-# Fever in the Returned Traveller — Interactive Explorer
+# Fever in the Returned Traveller — incubation and geographic explorer
 
-**Prototype v0.1 · reviewed Oct 2026 · owner: Infection Services**
+**Prototype v0.2 · reviewed Oct 2026 · owner: Infection Services**
 
-An aid to thinking, not a diagnostic rule. Incubation windows and regional grades are approximate and outliers occur — corroborate with the departmental guideline, secondary sources, and current Health NZ / Public Health advice.
+An aid to thinking. Incubation windows and regional grades are approximate and outliers occur — corroborate with the departmental guideline, secondary sources, and current Health NZ / Public Health advice.
 
 ---
 
